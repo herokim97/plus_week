@@ -11,7 +11,9 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface ReservationRepository extends JpaRepository<Reservation, Long> {
+public interface ReservationRepository extends JpaRepository<Reservation, Long>, ReservationRepositoryCustom {
+
+
 
     List<Reservation> findByUserIdAndItemId(Long userId, Long itemId);
 
@@ -35,5 +37,5 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             "JOIN FETCH ru.nickname " +
             "JOIN FETCH r.item ri " +
             "JOIN FETCH ri.name ")
-    List<Reservation> findAll();
+    List<Reservation> findAllWithFetchJoin();
 }

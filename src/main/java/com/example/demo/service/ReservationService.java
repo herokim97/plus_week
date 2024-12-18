@@ -1,16 +1,17 @@
 package com.example.demo.service;
 
 import com.example.demo.dto.ReservationResponseDto;
-import com.example.demo.entity.Item;
-import com.example.demo.entity.RentalLog;
-import com.example.demo.entity.Reservation;
-import com.example.demo.entity.User;
+import com.example.demo.entity.*;
 import com.example.demo.exception.ReservationConflictException;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.ReservationRepository;
 import com.example.demo.repository.UserRepository;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.demo.config.JPAConfiguration;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,6 +24,8 @@ public class ReservationService {
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
     private final RentalLogService rentalLogService;
+
+
 
     public ReservationService(ReservationRepository reservationRepository,
                               ItemRepository itemRepository,
@@ -54,7 +57,7 @@ public class ReservationService {
 
     // TODO: 3. N+1 문제
     public List<ReservationResponseDto> getReservations() {
-        List<Reservation> reservations = reservationRepository.findAll();
+        List<Reservation> reservations = reservationRepository.findAllWithFetchJoin();
 
         return reservations.stream().map(reservation -> {
             User user = reservation.getUser();
@@ -80,15 +83,7 @@ public class ReservationService {
 
     public List<Reservation> searchReservations(Long userId, Long itemId) {
 
-        if (userId != null && itemId != null) {
-            return reservationRepository.findByUserIdAndItemId(userId, itemId);
-        } else if (userId != null) {
-            return reservationRepository.findByUserId(userId);
-        } else if (itemId != null) {
-            return reservationRepository.findByItemId(itemId);
-        } else {
-            return reservationRepository.findAll();
-        }
+        return reservationRepository.SearchUserAndItem(userId, itemId);
     }
 
     private List<ReservationResponseDto> convertToDto(List<Reservation> reservations) {
