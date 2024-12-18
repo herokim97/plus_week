@@ -48,7 +48,8 @@ public class ReservationService {
 
         Item item = itemRepository.findById(itemId).orElseThrow(() -> new IllegalArgumentException("해당 ID에 맞는 값이 존재하지 않습니다."));
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("해당 ID에 맞는 값이 존재하지 않습니다."));
-        Reservation reservation = new Reservation(item, user, "PENDING", startAt, endAt);
+        Reservation reservation = new Reservation(item, user, ReservationStatus.PENDING, startAt,endAt);
+
         Reservation savedReservation = reservationRepository.save(reservation);
 
         RentalLog rentalLog = new RentalLog(savedReservation, "로그 메세지", "CREATE");
@@ -100,26 +101,44 @@ public class ReservationService {
 
     // TODO: 7. 리팩토링
     @Transactional
-    public void updateReservationStatus(Long reservationId, String status) {
-        Reservation reservation = reservationRepository.findById(reservationId).orElseThrow(() -> new IllegalArgumentException("해당 ID에 맞는 데이터가 존재하지 않습니다."));
+    public void updateReservationStatus(Long reservationId, String inStatus) {
+        ReservationStatus status;
+        try {
+            status = ReservationStatus.valueOf(inStatus.toUpperCase()); // 대소문자 무시
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("유효하지 않은 상태값입니다: " + inStatus);
+        }
 
-        if ("APPROVED".equals(status)) {
-            if (!"PENDING".equals(reservation.getStatus())) {
-                throw new IllegalArgumentException("PENDING 상태만 APPROVED로 변경 가능합니다.");
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 ID에 맞는 데이터가 존재하지 않습니다."));
+
+        ReservationStatus oldStatus = reservation.getStatus();
+        validStatus(oldStatus, status);
+
+        reservation.updateStatus(status);
+    }
+
+    private void validStatus(ReservationStatus oldStatus, ReservationStatus inStatus) {
+        if (oldStatus.equals(ReservationStatus.PENDING)) {
+            // PENDING 상태에서 APPROVED 또는 EXPIRED로만 변경 가능
+            if (!(inStatus.equals(ReservationStatus.APPROVED) || inStatus.equals(ReservationStatus.EXPIRED))) {
+                throw new IllegalArgumentException("PENDING 상태는 APPROVED 또는 EXPIRED로만 변경 가능합니다.");
             }
-            reservation.updateStatus("APPROVED");
-        } else if ("CANCELED".equals(status)) {
-            if ("EXPIRED".equals(reservation.getStatus())) {
-                throw new IllegalArgumentException("EXPIRED 상태인 예약은 취소할 수 없습니다.");
+        } else if (oldStatus.equals(ReservationStatus.EXPIRED)) {
+            // EXPIRED 상태에서는 CANCELLED로 변경 불가
+            if (inStatus.equals(ReservationStatus.CANCELED)) {
+                throw new IllegalArgumentException("EXPIRED 상태인 예약은 CANCELLED 상태로 변경할 수 없습니다.");
             }
-            reservation.updateStatus("CANCELED");
-        } else if ("EXPIRED".equals(status)) {
-            if (!"PENDING".equals(reservation.getStatus())) {
-                throw new IllegalArgumentException("PENDING 상태만 EXPIRED로 변경 가능합니다.");
+        } else if (oldStatus.equals(ReservationStatus.APPROVED)) {
+            // APPROVED 상태는 EXPIRED로만 변경 가능 (예시)
+            if (!inStatus.equals(ReservationStatus.EXPIRED)) {
+                throw new IllegalArgumentException("APPROVED 상태는 EXPIRED 상태로만 변경 가능합니다.");
             }
-            reservation.updateStatus("EXPIRED");
         } else {
-            throw new IllegalArgumentException("올바르지 않은 상태: " + status);
+            // 정의되지 않은 상태 변경 요청에 대한 처리
+            throw new IllegalArgumentException(
+                    String.format("현재 상태 %s에서 %s로의 변경은 허용되지 않습니다.", oldStatus, inStatus)
+            );
         }
     }
 }
