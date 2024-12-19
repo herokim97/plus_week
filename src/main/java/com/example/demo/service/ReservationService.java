@@ -7,6 +7,7 @@ import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.ReservationRepository;
 import com.example.demo.repository.UserRepository;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Service;
@@ -68,6 +69,7 @@ public class ReservationService {
                     reservation.getId(),
                     user.getNickname(),
                     item.getName(),
+                    reservation.getStatus(),
                     reservation.getStartAt(),
                     reservation.getEndAt()
             );
@@ -93,6 +95,7 @@ public class ReservationService {
                         reservation.getId(),
                         reservation.getUser().getNickname(),
                         reservation.getItem().getName(),
+                        reservation.getStatus(),
                         reservation.getStartAt(),
                         reservation.getEndAt()
                 ))
@@ -101,7 +104,7 @@ public class ReservationService {
 
     // TODO: 7. 리팩토링
     @Transactional
-    public void updateReservationStatus(Long reservationId, String inStatus) {
+    public ReservationResponseDto updateReservationStatus(Long reservationId, String inStatus) {
         ReservationStatus status;
         try {
             status = ReservationStatus.valueOf(inStatus.toUpperCase()); // 대소문자 무시
@@ -114,8 +117,9 @@ public class ReservationService {
 
         ReservationStatus oldStatus = reservation.getStatus();
         validStatus(oldStatus, status);
-
         reservation.updateStatus(status);
+
+       return new ReservationResponseDto(reservation.getId(), reservation.getUser().getNickname(), reservation.getItem().getName(),reservation.getStatus(), reservation.getStartAt(), reservation.getEndAt());
     }
 
     private void validStatus(ReservationStatus oldStatus, ReservationStatus inStatus) {
